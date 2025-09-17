@@ -1,0 +1,15 @@
+streamlit
+plotly
+requests
+# kaleido  # só se quiseres exportar gráficos Plotly para imagem (PNG/SVG)
+# pyarrow  # acelera operações de I/O com Parquet/Arrow, caso venhas a usar
+
+
+pandas>=2.2
+intake-esm>=2023.7.0
+xarray>=2024.6.0
+fsspec>=2024.6.0
+gcsfs>=2024.6.1
+zarr>=2.18.2
+pandas>=2.2
+numpy>=1.26
