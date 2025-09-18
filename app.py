@@ -4,7 +4,7 @@ from datetime import date
 import numpy as np
 import pandas as pd
 import streamlit as st
-
+import traceback, datetime as dt, os
 from services.open_meteo import geocode, fetch_daily, YESTERDAY
 from utils.transform import monthly, normals, pick_value_for
 from views.filters import render_filters
@@ -94,6 +94,21 @@ def _prep_monthly(lat, lon, tz, start, end, month_num, base_start, base_end):
 
 # --------- página / estilo leve ----------
 st.set_page_config(page_title="Metereologia", layout="wide")
+
+
+def safe_render(fn, *args, **kwargs):
+    try:
+        fn(*args, **kwargs)
+    except Exception:
+        tb = traceback.format_exc()
+        st.error("Houve um erro a renderizar esta secção.")
+        with st.expander("Detalhes técnicos"):
+            st.code(tb, language="text")
+        # loga também em ficheiro para veres nos logs do Cloud
+        os.makedirs(".cache", exist_ok=True)
+        with open(".cache/last_error.log", "a", encoding="utf-8") as f:
+            f.write(f"\n--- {dt.datetime.utcnow()}Z ---\n{tb}\n")
+
 st.markdown("""
 <style>
 .stSelectbox, .stDateInput, .stTextInput { font-size: 0.9rem; }
@@ -115,8 +130,9 @@ with tab_fc:
     flt = render_filters(mode="place_only", key_prefix="fc", default_place="Lisboa")
     q_fc = flt["query"]
     lat, lon, tz, label = _pick_place(q_fc, key_prefix="fc")
+
     if lat is not None:
-        render_forecast_tab()  # a tua view continua a gerir o resto
+        safe_render(render_forecast_tab)  # a tua view continua a gerir o resto
 
 # ─────────────────────────── HISTÓRICO ─────────────────────────
 with tab_hist:
@@ -151,20 +167,25 @@ with tab_hist:
             st.caption(f"Local: **{label}** • Lat/Lon: {lat:.4f}, {lon:.4f} • Fuso: {tz}")
 
             sub_t, sub_p, sub_cmp = st.tabs(["🌡️ Temperatura", "🌧️ Precipitação", "📊 Comparação"])
+
             with sub_t:
-                render_temperature_tab(
+                safe_render(
+                    render_temperature_tab,
                     view_df, month_num, month_label,
                     ref_year, last2_years, t_50, t_last2,
                     show_50, show_last2
                 )
+
             with sub_p:
-                render_precipitation_tab(
+                safe_render(
+                    render_precipitation_tab,
                     view_df, month_num, month_label,
                     ref_year, last2_years, p_50, p_last2,
                     show_50, show_last2
                 )
+
             with sub_cmp:
-                render_comparison_tab(dfm)
+                safe_render(render_comparison_tab, dfm)
 
 # ────────────────────────── SISMICIDADE ────────────────────────
 with tab_eq:
@@ -173,17 +194,17 @@ with tab_eq:
     q_eq = flt_eq["query"]
     lat, lon, tz, label = _pick_place(q_eq, key_prefix="eq")
     with st.expander("Período (opcional)", expanded=False):
-        s_eq = st.date_input("Início", date.today().replace(year=date.today().year-10), key="eq_s")
+        s_eq = st.date_input("Início", date.today().replace(year=date.today().year - 10), key="eq_s")
         e_eq = st.date_input("Fim", date.today(), key="eq_e")
     if lat is not None:
-        render_seismicity_tab(lat, lon, s_eq, e_eq)
+        safe_render(render_seismicity_tab, lat, lon, s_eq, e_eq)
 
 # ─────────────────────────── INDICADORES ───────────────────────
 with tab_ind:
     # aqui NÃO há filtros visíveis
-    render_climate_indicators_tab()
+    safe_render(render_climate_indicators_tab)
 
 # ─────────────────────────── CENÁRIOS 2100 ─────────────────────
 with tab_cs:
     # aqui também não há filtros visíveis
-    render_climate_tab()
+    safe_render(render_climate_tab)
